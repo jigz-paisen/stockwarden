@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StockWarden — Inventory Management</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== TOPBAR ===================== -->
+<div class="topbar">
+  <div class="logo">Stock<span>Warden</span></div>
+  <div class="topbar-stats">
+    <div class="stat-pill">
+      <span class="label">Total Items</span>
+      <span class="value" id="top-total">0</span>
+    </div>
+    <div class="stat-pill">
+      <span class="label">Total Value</span>
+      <span class="value" id="top-value">$0</span>
+    </div>
+    <div class="stat-pill">
+      <span class="label">Low Stock</span>
+      <span class="value" id="top-low" style="color:var(--warn)">0</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MAIN LAYOUT ===================== -->
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="nav-section">
+      <div class="nav-label">Menu</div>
+      <div class="nav-item active" onclick="navigate('dashboard')">
+        <span class="icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="navigate('inventory')">
+        <span class="icon">📦</span> Inventory
+        <span class="nav-badge" id="nav-badge-low" style="display:none">!</span>
+      </div>
+      <div class="nav-item" onclick="navigate('categories')">
+        <span class="icon">🏷️</span> Categories
+      </div>
+      <div class="nav-item" onclick="navigate('transactions')">
+        <span class="icon">🔄</span> Transactions
+      </div>
+      <div class="nav-item" onclick="navigate('reports')">
+        <span class="icon">📈</span> Reports
+      </div>
+    </div>
+    <div class="nav-section" style="margin-top:24px;">
+      <div class="nav-label">Developer</div>
+      <div class="nav-item" onclick="navigate('schema')">
+        <span class="icon">🗄️</span> MySQL Schema
+      </div>
+    </div>
+  </nav>
+
+  <!-- CONTENT AREA -->
+  <div class="content">
+
+    <!-- ===== DASHBOARD PAGE ===== -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Dashboard</div>
+          <div class="page-subtitle">Real-time inventory overview</div>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Products</div>
+          <div class="kpi-value" id="kpi-total">0</div>
+          <div class="kpi-sub">Unique SKUs tracked</div>
+        </div>
+        <div class="kpi-card success">
+          <div class="kpi-label">Total Stock Value</div>
+          <div class="kpi-value" id="kpi-value" style="font-size:1.5rem">$0</div>
+          <div class="kpi-sub">Cost × Quantity</div>
+        </div>
+        <div class="kpi-card warn">
+          <div class="kpi-label">Low Stock Items</div>
+          <div class="kpi-value" id="kpi-low">0</div>
+          <div class="kpi-sub">Below reorder point</div>
+        </div>
+        <div class="kpi-card danger">
+          <div class="kpi-label">Out of Stock</div>
+          <div class="kpi-value" id="kpi-out">0</div>
+          <div class="kpi-sub">Zero quantity</div>
+        </div>
+      </div>
+      <div class="dash-grid">
+        <div>
+          <div class="section-title">⚠️ Low Stock Alerts</div>
+          <div class="table-wrap" id="dash-low-table">
+            <div class="empty-state"><p>All items are well-stocked!</p></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">🕒 Recent Activity</div>
+          <div class="table-wrap">
+            <div class="log-list" id="activity-log">
+              <div class="empty-state"><p>No recent activity.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== INVENTORY PAGE ===== -->
+    <div class="page" id="page-inventory">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Inventory</div>
+          <div class="page-subtitle">Manage your products and stock levels</div>
+        </div>
+        <button class="btn btn-primary" onclick="openAddModal()">+ Add Product</button>
+      </div>
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" placeholder="Search by name, SKU, or category..." oninput="renderTable()">
+        </div>
+        <select class="filter-select" id="filter-category" onchange="renderTable()">
+          <option value="">All Categories</option>
+        </select>
+        <select class="filter-select" id="filter-status" onchange="renderTable()">
+          <option value="">All Status</option>
+          <option value="in">In Stock</option>
+          <option value="low">Low Stock</option>
+          <option value="out">Out of Stock</option>
+        </select>
+      </div>
+      <div class="category-chips" id="cat-chips"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="setSortCol('id')">#</th>
+              <th onclick="setSortCol('name')">Product ▾</th>
+              <th onclick="setSortCol('category')">Category</th>
+              <th onclick="setSortCol('quantity')">Qty</th>
+              <th>Stock</th>
+              <th onclick="setSortCol('price')">Price</th>
+              <th onclick="setSortCol('cost')">Cost</th>
+              <th>Value</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="inventory-tbody"></tbody>
+        </table>
+      </div>
+      <div id="table-empty" class="empty-state" style="display:none;">
+        <div class="icon">📦</div>
+        <p>No products found. Add your first product!</p>
+      </div>
+    </div>
+
+    <!-- ===== CATEGORIES PAGE ===== -->
+    <div class="page" id="page-categories">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Categories</div>
+          <div class="page-subtitle">Organise your product catalog</div>
+        </div>
+        <button class="btn btn-primary" onclick="openCatModal()">+ Add Category</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Category Name</th>
+              <th>Description</th>
+              <th>Products</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="cat-tbody"></tbody>
+        </table>
+      </div>
+      <div id="cat-empty" class="empty-state" style="display:none;">
+        <div class="icon">🏷️</div>
+        <p>No categories yet. Create one to organize your products.</p>
+      </div>
+    </div>
+
+    <!-- ===== TRANSACTIONS PAGE ===== -->
+    <div class="page" id="page-transactions">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Transactions</div>
+          <div class="page-subtitle">Stock movement history</div>
+        </div>
+        <button class="btn btn-primary" onclick="openTxModal()">+ Record Transaction</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Product</th>
+              <th>Type</th>
+              <th>Qty Change</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody id="tx-tbody"></tbody>
+        </table>
+      </div>
+      <div id="tx-empty" class="empty-state" style="display:none;">
+        <div class="icon">🔄</div>
+        <p>No transactions recorded yet.</p>
+      </div>
+    </div>
+
+    <!-- ===== REPORTS PAGE ===== -->
+    <div class="page" id="page-reports">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Reports</div>
+          <div class="page-subtitle">Insights and analytics</div>
+        </div>
+      </div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Categories</div>
+          <div class="kpi-value" id="rep-cats">0</div>
+        </div>
+        <div class="kpi-card success">
+          <div class="kpi-label">Total Transactions</div>
+          <div class="kpi-value" id="rep-txs">0</div>
+        </div>
+        <div class="kpi-card warn">
+          <div class="kpi-label">Avg Stock per Item</div>
+          <div class="kpi-value" id="rep-avg">0</div>
+        </div>
+      </div>
+      <div class="dash-grid">
+        <div>
+          <div class="section-title">Top 5 by Value</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Product</th><th>Value</th></tr></thead>
+              <tbody id="rep-top-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Stock by Category</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Category</th><th>Items</th><th>Total Qty</th></tr></thead>
+              <tbody id="rep-cat-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MYSQL SCHEMA PAGE ===== -->
+    <div class="page" id="page-schema">
+      <div class="page-header">
+        <div>
+          <div class="page-title">MySQL Schema</div>
+          <div class="page-subtitle">Production-ready database structure</div>
+        </div>
+        <button class="btn btn-primary" onclick="copySchema()">Copy SQL</button>
+      </div>
+      <p class="schema-intro">
+        Use this schema to set up your MySQL database. Connect it via a PHP/Node.js/Python backend
+        and replace the localStorage layer in <code>app.js</code> with real API calls.
+      </p>
+      <div class="section-title">📁 Tables &amp; Views</div>
+      <div class="code-block" id="schema-code"><span class="cmt">-- ================================================
+-- StockWarden Inventory Management MySQL Schema
+-- ================================================</span>
+
+<span class="kw">CREATE DATABASE IF NOT EXISTS</span> stockwarden
+  <span class="kw">CHARACTER SET</span> utf8mb4 <span class="kw">COLLATE</span> utf8mb4_unicode_ci;
+
+<span class="kw">USE</span> stockwarden;
+
+<span class="cmt">-- Categories table</span>
+<span class="kw">CREATE TABLE</span> categories (
+  id          <span class="kw">INT UNSIGNED AUTO_INCREMENT PRIMARY KEY</span>,
+  name        <span class="kw">VARCHAR</span>(100) <span class="kw">NOT NULL UNIQUE</span>,
+  description <span class="kw">TEXT</span>,
+  created_at  <span class="kw">TIMESTAMP DEFAULT CURRENT_TIMESTAMP</span>
+);
+
+<span class="cmt">-- Products / Inventory table</span>
+<span class="kw">CREATE TABLE</span> products (
+  id            <span class="kw">INT UNSIGNED AUTO_INCREMENT PRIMARY KEY</span>,
+  sku           <span class="kw">VARCHAR</span>(50)  <span class="kw">NOT NULL UNIQUE</span>,
+  name          <span class="kw">VARCHAR</span>(255) <span class="kw">NOT NULL</span>,
+  description   <span class="kw">TEXT</span>,
+  category_id   <span class="kw">INT UNSIGNED</span>,
+  quantity      <span class="kw">INT NOT NULL DEFAULT</span> 0,
+  reorder_point <span class="kw">INT NOT NULL DEFAULT</span> 10,
+  price         <span class="kw">DECIMAL</span>(10,2) <span class="kw">NOT NULL DEFAULT</span> 0.00,
+  cost          <span class="kw">DECIMAL</span>(10,2) <span class="kw">NOT NULL DEFAULT</span> 0.00,
+  supplier      <span class="kw">VARCHAR</span>(255),
+  location      <span class="kw">VARCHAR</span>(100),
+  created_at    <span class="kw">TIMESTAMP DEFAULT CURRENT_TIMESTAMP</span>,
+  updated_at    <span class="kw">TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP</span>,
+  <span class="kw">FOREIGN KEY</span> (category_id) <span class="kw">REFERENCES</span> categories(id) <span class="kw">ON DELETE SET NULL</span>,
+  <span class="kw">INDEX</span> idx_sku      (sku),
+  <span class="kw">INDEX</span> idx_category (category_id),
+  <span class="kw">INDEX</span> idx_quantity  (quantity)
+);
+
+<span class="cmt">-- Stock Transactions table</span>
+<span class="kw">CREATE TABLE</span> transactions (
+  id         <span class="kw">INT UNSIGNED AUTO_INCREMENT PRIMARY KEY</span>,
+  product_id <span class="kw">INT UNSIGNED NOT NULL</span>,
+  type       <span class="kw">ENUM</span>(<span class="str">'stock_in'</span>, <span class="str">'stock_out'</span>, <span class="str">'adjustment'</span>, <span class="str">'return'</span>) <span class="kw">NOT NULL</span>,
+  quantity   <span class="kw">INT NOT NULL</span>,
+  note       <span class="kw">VARCHAR</span>(500),
+  created_by <span class="kw">VARCHAR</span>(100),
+  created_at <span class="kw">TIMESTAMP DEFAULT CURRENT_TIMESTAMP</span>,
+  <span class="kw">FOREIGN KEY</span> (product_id) <span class="kw">REFERENCES</span> products(id) <span class="kw">ON DELETE CASCADE</span>,
+  <span class="kw">INDEX</span> idx_product (product_id),
+  <span class="kw">INDEX</span> idx_type    (type),
+  <span class="kw">INDEX</span> idx_date    (created_at)
+);
+
+<span class="cmt">-- Users table (for multi-user access)</span>
+<span class="kw">CREATE TABLE</span> users (
+  id         <span class="kw">INT UNSIGNED AUTO_INCREMENT PRIMARY KEY</span>,
+  username   <span class="kw">VARCHAR</span>(80)  <span class="kw">NOT NULL UNIQUE</span>,
+  email      <span class="kw">VARCHAR</span>(255) <span class="kw">NOT NULL UNIQUE</span>,
+  password   <span class="kw">VARCHAR</span>(255) <span class="kw">NOT NULL</span>,  <span class="cmt">-- bcrypt hash</span>
+  role       <span class="kw">ENUM</span>(<span class="str">'admin'</span>, <span class="str">'manager'</span>, <span class="str">'viewer'</span>) <span class="kw">DEFAULT</span> <span class="str">'viewer'</span>,
+  created_at <span class="kw">TIMESTAMP DEFAULT CURRENT_TIMESTAMP</span>
+);
+
+<span class="cmt">-- ================================================
+-- Useful Views
+-- ================================================</span>
+
+<span class="kw">CREATE VIEW</span> v_inventory_status <span class="kw">AS</span>
+<span class="kw">SELECT</span>
+  p.*,
+  c.name <span class="kw">AS</span> category_name,
+  (p.quantity * p.cost) <span class="kw">AS</span> stock_value,
+  <span class="kw">CASE</span>
+    <span class="kw">WHEN</span> p.quantity = 0              <span class="kw">THEN</span> <span class="str">'out_of_stock'</span>
+    <span class="kw">WHEN</span> p.quantity &lt;= p.reorder_point <span class="kw">THEN</span> <span class="str">'low_stock'</span>
+    <span class="kw">ELSE</span>                                   <span class="str">'in_stock'</span>
+  <span class="kw">END</span> <span class="kw">AS</span> stock_status
+<span class="kw">FROM</span> products p
+<span class="kw">LEFT JOIN</span> categories c <span class="kw">ON</span> p.category_id = c.id;
+
+<span class="kw">CREATE VIEW</span> v_transactions <span class="kw">AS</span>
+<span class="kw">SELECT</span>
+  t.*,
+  p.name <span class="kw">AS</span> product_name,
+  p.sku  <span class="kw">AS</span> product_sku
+<span class="kw">FROM</span> transactions t
+<span class="kw">JOIN</span> products p <span class="kw">ON</span> t.product_id = p.id;
+
+<span class="cmt">-- ================================================
+-- Stored Procedure: Stock Adjustment
+-- ================================================</span>
+
+<span class="kw">DELIMITER</span> //
+<span class="kw">CREATE PROCEDURE</span> <span class="fn">adjust_stock</span>(
+  <span class="kw">IN</span> p_product_id <span class="kw">INT</span>,
+  <span class="kw">IN</span> p_qty_change <span class="kw">INT</span>,
+  <span class="kw">IN</span> p_type       <span class="kw">VARCHAR</span>(20),
+  <span class="kw">IN</span> p_note       <span class="kw">VARCHAR</span>(500)
+)
+<span class="kw">BEGIN</span>
+  <span class="kw">UPDATE</span> products
+  <span class="kw">SET</span> quantity = quantity + p_qty_change
+  <span class="kw">WHERE</span> id = p_product_id;
+
+  <span class="kw">INSERT INTO</span> transactions (product_id, type, quantity, note)
+  <span class="kw">VALUES</span> (p_product_id, p_type, p_qty_change, p_note);
+<span class="kw">END</span> //
+<span class="kw">DELIMITER</span> ;</div>
+    </div><!-- /page-schema -->
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ===================== MODALS ===================== -->
+
+<!-- ADD / EDIT PRODUCT -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title-text">Add Product</span>
+      <button class="modal-close" onclick="closeModal('product-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Product Name *</label>
+          <input class="form-input" id="f-name" placeholder="e.g. USB-C Hub Pro">
+        </div>
+        <div class="form-group">
+          <label class="form-label">SKU *</label>
+          <input class="form-input" id="f-sku" placeholder="e.g. USB-HUB-001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select class="form-select" id="f-category">
+            <option value="">— Select —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Supplier</label>
+          <input class="form-input" id="f-supplier" placeholder="Supplier name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Quantity *</label>
+          <input class="form-input" id="f-qty" type="number" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reorder Point</label>
+          <input class="form-input" id="f-reorder" type="number" min="0" placeholder="10">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Selling Price ($)</label>
+          <input class="form-input" id="f-price" type="number" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cost Price ($)</label>
+          <input class="form-input" id="f-cost" type="number" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Location</label>
+          <input class="form-input" id="f-location" placeholder="e.g. Shelf A3">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Description</label>
+          <textarea class="form-textarea" id="f-desc" placeholder="Optional product description..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('product-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProduct()">Save Product</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADJUST STOCK -->
+<div class="modal-overlay" id="adjust-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Adjust Stock</span>
+      <button class="modal-close" onclick="closeModal('adjust-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="adj-info">
+        Product: <strong id="adj-product-name"></strong><br>
+        Current qty: <strong id="adj-current-qty" style="color:var(--accent)"></strong>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Transaction Type</label>
+          <select class="form-select" id="adj-type">
+            <option value="stock_in">Stock In (+)</option>
+            <option value="stock_out">Stock Out (−)</option>
+            <option value="adjustment">Adjustment</option>
+            <option value="return">Return</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Quantity</label>
+          <input class="form-input" id="adj-qty" type="number" min="1" value="1">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Note</label>
+          <input class="form-input" id="adj-note" placeholder="Reason for adjustment...">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('adjust-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAdjustment()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- CATEGORY MODAL -->
+<div class="modal-overlay" id="cat-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="cat-modal-title">Add Category</span>
+      <button class="modal-close" onclick="closeModal('cat-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label">Category Name *</label>
+          <input class="form-input" id="cat-name" placeholder="e.g. Electronics">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Description</label>
+          <textarea class="form-textarea" id="cat-desc" placeholder="Optional..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('cat-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCategory()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- TRANSACTION MODAL -->
+<div class="modal-overlay" id="tx-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Record Transaction</span>
+      <button class="modal-close" onclick="closeModal('tx-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label">Product *</label>
+          <select class="form-select" id="tx-product"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select class="form-select" id="tx-type">
+            <option value="stock_in">Stock In</option>
+            <option value="stock_out">Stock Out</option>
+            <option value="adjustment">Adjustment</option>
+            <option value="return">Return</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Quantity *</label>
+          <input class="form-input" id="tx-qty" type="number" min="1" value="1">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Note</label>
+          <input class="form-input" id="tx-note" placeholder="Optional note...">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('tx-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTx()">Record</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- JAVASCRIPT -->
+<script src="app.js"></script>
+</body>
+</html>
