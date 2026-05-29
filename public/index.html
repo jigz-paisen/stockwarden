@@ -26,6 +26,10 @@
       <span class="value" id="top-low" style="color:var(--warn)">0</span>
     </div>
   </div>
+  <div class="topbar-user">
+    <span id="current-user-info" style="color:var(--muted);font-size:0.8rem"></span>
+    <button class="btn btn-ghost" onclick="API.logout()" style="margin-left:12px;font-size:0.8rem">Sign Out</button>
+  </div>
 </div>
 
 <!-- ===================== MAIN LAYOUT ===================== -->
@@ -53,7 +57,10 @@
       </div>
     </div>
     <div class="nav-section" style="margin-top:24px;">
-      <div class="nav-label">Developer</div>
+      <div class="nav-label">Admin</div>
+      <div class="nav-item" id="nav-users" style="display:none" onclick="navigate('users')">
+        <span class="icon">👥</span> Users
+      </div>
       <div class="nav-item" onclick="navigate('schema')">
         <span class="icon">🗄️</span> MySQL Schema
       </div>
@@ -118,7 +125,7 @@
           <div class="page-title">Inventory</div>
           <div class="page-subtitle">Manage your products and stock levels</div>
         </div>
-        <button class="btn btn-primary" onclick="openAddModal()">+ Add Product</button>
+        <button class="btn btn-primary role-manager" onclick="openAddModal()">+ Add Product</button>
       </div>
       <div class="toolbar">
         <div class="search-wrap">
@@ -168,7 +175,7 @@
           <div class="page-title">Categories</div>
           <div class="page-subtitle">Organise your product catalog</div>
         </div>
-        <button class="btn btn-primary" onclick="openCatModal()">+ Add Category</button>
+        <button class="btn btn-primary role-manager" onclick="openCatModal()">+ Add Category</button>
       </div>
       <div class="table-wrap">
         <table>
@@ -197,7 +204,7 @@
           <div class="page-title">Transactions</div>
           <div class="page-subtitle">Stock movement history</div>
         </div>
-        <button class="btn btn-primary" onclick="openTxModal()">+ Record Transaction</button>
+        <button class="btn btn-primary role-manager" onclick="openTxModal()">+ Record Transaction</button>
       </div>
       <div class="table-wrap">
         <table>
@@ -224,38 +231,38 @@
       <div class="page-header">
         <div>
           <div class="page-title">Reports</div>
-          <div class="page-subtitle">Insights and analytics</div>
+          <div class="page-subtitle">Inventory analytics and summaries</div>
         </div>
       </div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
         <div class="kpi-card">
-          <div class="kpi-label">Total Categories</div>
+          <div class="kpi-label">Categories</div>
           <div class="kpi-value" id="rep-cats">0</div>
         </div>
-        <div class="kpi-card success">
-          <div class="kpi-label">Total Transactions</div>
+        <div class="kpi-card">
+          <div class="kpi-label">Transactions</div>
           <div class="kpi-value" id="rep-txs">0</div>
         </div>
-        <div class="kpi-card warn">
-          <div class="kpi-label">Avg Stock per Item</div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg Stock / Product</div>
           <div class="kpi-value" id="rep-avg">0</div>
         </div>
       </div>
       <div class="dash-grid">
         <div>
-          <div class="section-title">Top 5 by Value</div>
+          <div class="section-title">💰 Top Products by Value</div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Product</th><th>Value</th></tr></thead>
+              <thead><tr><th>Product</th><th>Stock Value</th></tr></thead>
               <tbody id="rep-top-tbody"></tbody>
             </table>
           </div>
         </div>
         <div>
-          <div class="section-title">Stock by Category</div>
+          <div class="section-title">📂 Stock by Category</div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Category</th><th>Items</th><th>Total Qty</th></tr></thead>
+              <thead><tr><th>Category</th><th>Products</th><th>Total Qty</th></tr></thead>
               <tbody id="rep-cat-tbody"></tbody>
             </table>
           </div>
@@ -263,129 +270,113 @@
       </div>
     </div>
 
-    <!-- ===== MYSQL SCHEMA PAGE ===== -->
+    <!-- ===== USERS PAGE (admin only) ===== -->
+    <div class="page" id="page-users">
+      <div class="page-header">
+        <div>
+          <div class="page-title">User Management</div>
+          <div class="page-subtitle">Create and manage staff accounts</div>
+        </div>
+        <button class="btn btn-primary" onclick="openAddUserModal()">+ Add User</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:20px;padding:16px;background:#111;border:1px solid #222;border-radius:10px;font-size:0.8rem;color:var(--muted)">
+        <strong style="color:var(--text)">Role permissions:</strong><br><br>
+        <strong style="color:var(--accent)">Admin</strong> — Full access: view, add, edit, delete, manage users<br>
+        <strong style="color:var(--warn)">Manager</strong> — Can view, add, edit products/categories, record transactions. Cannot delete or manage users<br>
+        <strong style="color:var(--danger)">Viewer</strong> — Read-only access to all pages
+      </div>
+    </div>
+
+    <!-- ===== SCHEMA PAGE ===== -->
     <div class="page" id="page-schema">
       <div class="page-header">
         <div>
           <div class="page-title">MySQL Schema</div>
-          <div class="page-subtitle">Production-ready database structure</div>
+          <div class="page-subtitle">Database structure reference</div>
         </div>
-        <button class="btn btn-primary" onclick="copySchema()">Copy SQL</button>
+        <button class="btn btn-ghost" onclick="copySchema()">Copy Schema</button>
       </div>
-      <p class="schema-intro">
-        Use this schema to set up your MySQL database. Connect it via a PHP/Node.js/Python backend
-        and replace the localStorage layer in <code>app.js</code> with real API calls.
-      </p>
-      <div class="section-title">📁 Tables &amp; Views</div>
-      <div class="code-block" id="schema-code"><span class="cmt">-- ================================================
--- StockWarden Inventory Management MySQL Schema
--- ================================================</span>
-
-<span class="kw">CREATE DATABASE IF NOT EXISTS</span> stockwarden
-  <span class="kw">CHARACTER SET</span> utf8mb4 <span class="kw">COLLATE</span> utf8mb4_unicode_ci;
-
+      <div class="table-wrap">
+        <pre class="schema-code" id="schema-code"><span class="kw">CREATE DATABASE</span> stockwarden;
 <span class="kw">USE</span> stockwarden;
 
-<span class="cmt">-- Categories table</span>
 <span class="kw">CREATE TABLE</span> categories (
-  id          <span class="kw">INT UNSIGNED AUTO_INCREMENT PRIMARY KEY</span>,
-  name        <span class="kw">VARCHAR</span>(100) <span class="kw">NOT NULL UNIQUE</span>,
+  id          <span class="kw">INT UNSIGNED</span>    <span class="kw">NOT NULL AUTO_INCREMENT</span>,
+  name        <span class="kw">VARCHAR</span>(100)    <span class="kw">NOT NULL UNIQUE</span>,
   description <span class="kw">TEXT</span>,
-  created_at  <span class="kw">TIMESTAMP DEFAULT CURRENT_TIMESTAMP</span>
+  created_at  <span class="kw">TIMESTAMP</span>       <span class="kw">DEFAULT CURRENT_TIMESTAMP</span>,
+  <span class="kw">PRIMARY KEY</span> (id)
 );
 
-<span class="cmt">-- Products / Inventory table</span>
 <span class="kw">CREATE TABLE</span> products (
-  id            <span class="kw">INT UNSIGNED AUTO_INCREMENT PRIMARY KEY</span>,
-  sku           <span class="kw">VARCHAR</span>(50)  <span class="kw">NOT NULL UNIQUE</span>,
-  name          <span class="kw">VARCHAR</span>(255) <span class="kw">NOT NULL</span>,
-  description   <span class="kw">TEXT</span>,
+  id            <span class="kw">INT UNSIGNED    NOT NULL AUTO_INCREMENT</span>,
+  sku           <span class="kw">VARCHAR</span>(50)     <span class="kw">NOT NULL UNIQUE</span>,
+  name          <span class="kw">VARCHAR</span>(255)    <span class="kw">NOT NULL</span>,
   category_id   <span class="kw">INT UNSIGNED</span>,
-  quantity      <span class="kw">INT NOT NULL DEFAULT</span> 0,
-  reorder_point <span class="kw">INT NOT NULL DEFAULT</span> 10,
-  price         <span class="kw">DECIMAL</span>(10,2) <span class="kw">NOT NULL DEFAULT</span> 0.00,
-  cost          <span class="kw">DECIMAL</span>(10,2) <span class="kw">NOT NULL DEFAULT</span> 0.00,
+  quantity      <span class="kw">INT             NOT NULL DEFAULT</span> 0,
+  reorder_point <span class="kw">INT             NOT NULL DEFAULT</span> 10,
+  price         <span class="kw">DECIMAL</span>(10,2)   <span class="kw">NOT NULL DEFAULT</span> 0.00,
+  cost          <span class="kw">DECIMAL</span>(10,2)   <span class="kw">NOT NULL DEFAULT</span> 0.00,
   supplier      <span class="kw">VARCHAR</span>(255),
   location      <span class="kw">VARCHAR</span>(100),
-  created_at    <span class="kw">TIMESTAMP DEFAULT CURRENT_TIMESTAMP</span>,
-  updated_at    <span class="kw">TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP</span>,
-  <span class="kw">FOREIGN KEY</span> (category_id) <span class="kw">REFERENCES</span> categories(id) <span class="kw">ON DELETE SET NULL</span>,
-  <span class="kw">INDEX</span> idx_sku      (sku),
-  <span class="kw">INDEX</span> idx_category (category_id),
-  <span class="kw">INDEX</span> idx_quantity  (quantity)
+  created_at    <span class="kw">TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP</span>,
+  updated_at    <span class="kw">TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP</span>,
+  <span class="kw">PRIMARY KEY</span> (id),
+  <span class="kw">FOREIGN KEY</span> (category_id) <span class="kw">REFERENCES</span> categories(id) <span class="kw">ON DELETE SET NULL</span>
 );
 
-<span class="cmt">-- Stock Transactions table</span>
 <span class="kw">CREATE TABLE</span> transactions (
-  id         <span class="kw">INT UNSIGNED AUTO_INCREMENT PRIMARY KEY</span>,
-  product_id <span class="kw">INT UNSIGNED NOT NULL</span>,
-  type       <span class="kw">ENUM</span>(<span class="str">'stock_in'</span>, <span class="str">'stock_out'</span>, <span class="str">'adjustment'</span>, <span class="str">'return'</span>) <span class="kw">NOT NULL</span>,
-  quantity   <span class="kw">INT NOT NULL</span>,
+  id         <span class="kw">INT UNSIGNED  NOT NULL AUTO_INCREMENT</span>,
+  product_id <span class="kw">INT UNSIGNED  NOT NULL</span>,
+  type       <span class="kw">ENUM</span>(<span class="str">'stock_in'</span>,<span class="str">'stock_out'</span>,<span class="str">'adjustment'</span>,<span class="str">'return'</span>) <span class="kw">NOT NULL</span>,
+  quantity   <span class="kw">INT           NOT NULL</span>,
   note       <span class="kw">VARCHAR</span>(500),
   created_by <span class="kw">VARCHAR</span>(100),
-  created_at <span class="kw">TIMESTAMP DEFAULT CURRENT_TIMESTAMP</span>,
-  <span class="kw">FOREIGN KEY</span> (product_id) <span class="kw">REFERENCES</span> products(id) <span class="kw">ON DELETE CASCADE</span>,
-  <span class="kw">INDEX</span> idx_product (product_id),
-  <span class="kw">INDEX</span> idx_type    (type),
-  <span class="kw">INDEX</span> idx_date    (created_at)
+  created_at <span class="kw">TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP</span>,
+  <span class="kw">PRIMARY KEY</span> (id),
+  <span class="kw">FOREIGN KEY</span> (product_id) <span class="kw">REFERENCES</span> products(id) <span class="kw">ON DELETE CASCADE</span>
 );
 
-<span class="cmt">-- Users table (for multi-user access)</span>
 <span class="kw">CREATE TABLE</span> users (
-  id         <span class="kw">INT UNSIGNED AUTO_INCREMENT PRIMARY KEY</span>,
-  username   <span class="kw">VARCHAR</span>(80)  <span class="kw">NOT NULL UNIQUE</span>,
-  email      <span class="kw">VARCHAR</span>(255) <span class="kw">NOT NULL UNIQUE</span>,
-  password   <span class="kw">VARCHAR</span>(255) <span class="kw">NOT NULL</span>,  <span class="cmt">-- bcrypt hash</span>
-  role       <span class="kw">ENUM</span>(<span class="str">'admin'</span>, <span class="str">'manager'</span>, <span class="str">'viewer'</span>) <span class="kw">DEFAULT</span> <span class="str">'viewer'</span>,
-  created_at <span class="kw">TIMESTAMP DEFAULT CURRENT_TIMESTAMP</span>
+  id         <span class="kw">INT UNSIGNED  NOT NULL AUTO_INCREMENT</span>,
+  username   <span class="kw">VARCHAR</span>(80)   <span class="kw">NOT NULL UNIQUE</span>,
+  email      <span class="kw">VARCHAR</span>(255)  <span class="kw">NOT NULL UNIQUE</span>,
+  password   <span class="kw">VARCHAR</span>(255)  <span class="kw">NOT NULL</span>,
+  role       <span class="kw">ENUM</span>(<span class="str">'admin'</span>,<span class="str">'manager'</span>,<span class="str">'viewer'</span>) <span class="kw">NOT NULL DEFAULT</span> <span class="str">'viewer'</span>,
+  is_active  <span class="kw">TINYINT</span>(1)    <span class="kw">NOT NULL DEFAULT</span> 1,
+  created_at <span class="kw">TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP</span>,
+  <span class="kw">PRIMARY KEY</span> (id)
 );
-
-<span class="cmt">-- ================================================
--- Useful Views
--- ================================================</span>
 
 <span class="kw">CREATE VIEW</span> v_inventory_status <span class="kw">AS</span>
-<span class="kw">SELECT</span>
-  p.*,
-  c.name <span class="kw">AS</span> category_name,
+<span class="kw">SELECT</span> p.*, c.name <span class="kw">AS</span> category_name,
   (p.quantity * p.cost) <span class="kw">AS</span> stock_value,
-  <span class="kw">CASE</span>
-    <span class="kw">WHEN</span> p.quantity = 0              <span class="kw">THEN</span> <span class="str">'out_of_stock'</span>
-    <span class="kw">WHEN</span> p.quantity &lt;= p.reorder_point <span class="kw">THEN</span> <span class="str">'low_stock'</span>
-    <span class="kw">ELSE</span>                                   <span class="str">'in_stock'</span>
-  <span class="kw">END</span> <span class="kw">AS</span> stock_status
+  <span class="kw">CASE WHEN</span> p.quantity = 0 <span class="kw">THEN</span> <span class="str">'out_of_stock'</span>
+       <span class="kw">WHEN</span> p.quantity &lt;= p.reorder_point <span class="kw">THEN</span> <span class="str">'low_stock'</span>
+       <span class="kw">ELSE</span> <span class="str">'in_stock'</span> <span class="kw">END AS</span> stock_status
 <span class="kw">FROM</span> products p
 <span class="kw">LEFT JOIN</span> categories c <span class="kw">ON</span> p.category_id = c.id;
 
 <span class="kw">CREATE VIEW</span> v_transactions <span class="kw">AS</span>
-<span class="kw">SELECT</span>
-  t.*,
-  p.name <span class="kw">AS</span> product_name,
-  p.sku  <span class="kw">AS</span> product_sku
+<span class="kw">SELECT</span> t.*, p.name <span class="kw">AS</span> product_name, p.sku <span class="kw">AS</span> product_sku
 <span class="kw">FROM</span> transactions t
-<span class="kw">JOIN</span> products p <span class="kw">ON</span> t.product_id = p.id;
-
-<span class="cmt">-- ================================================
--- Stored Procedure: Stock Adjustment
--- ================================================</span>
-
-<span class="kw">DELIMITER</span> //
-<span class="kw">CREATE PROCEDURE</span> <span class="fn">adjust_stock</span>(
-  <span class="kw">IN</span> p_product_id <span class="kw">INT</span>,
-  <span class="kw">IN</span> p_qty_change <span class="kw">INT</span>,
-  <span class="kw">IN</span> p_type       <span class="kw">VARCHAR</span>(20),
-  <span class="kw">IN</span> p_note       <span class="kw">VARCHAR</span>(500)
-)
-<span class="kw">BEGIN</span>
-  <span class="kw">UPDATE</span> products
-  <span class="kw">SET</span> quantity = quantity + p_qty_change
-  <span class="kw">WHERE</span> id = p_product_id;
-
-  <span class="kw">INSERT INTO</span> transactions (product_id, type, quantity, note)
-  <span class="kw">VALUES</span> (p_product_id, p_type, p_qty_change, p_note);
-<span class="kw">END</span> //
-<span class="kw">DELIMITER</span> ;</div>
-    </div><!-- /page-schema -->
+<span class="kw">JOIN</span> products p <span class="kw">ON</span> t.product_id = p.id;</pre>
+      </div>
+    </div>
 
   </div><!-- /content -->
 </div><!-- /main -->
@@ -552,6 +543,49 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('tx-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveTx()">Record</button>
+    </div>
+  </div>
+</div>
+
+<!-- USER MODAL (admin only) -->
+<div class="modal-overlay" id="user-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="user-modal-title">Add User</span>
+      <button class="modal-close" onclick="closeModal('user-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-user-id" value="">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Username *</label>
+          <input class="form-input" id="u-username" placeholder="e.g. jane.doe">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email *</label>
+          <input class="form-input" id="u-email" type="email" placeholder="jane@example.com">
+        </div>
+        <div id="u-password-field" class="form-group full">
+          <label class="form-label">Password *</label>
+          <input class="form-input" id="u-password" type="password" placeholder="Set a strong password">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Role *</label>
+          <select class="form-select" id="u-role">
+            <option value="viewer">Viewer</option>
+            <option value="manager">Manager</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="form-group" style="display:flex;align-items:center;gap:10px;padding-top:24px">
+          <input type="checkbox" id="u-active" checked style="width:16px;height:16px;accent-color:var(--accent)">
+          <label class="form-label" style="margin:0;text-transform:none;font-size:0.85rem">Account active</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('user-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveUser()">Save User</button>
     </div>
   </div>
 </div>
